@@ -1,36 +1,186 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Algo Trading Bot
 
-## Getting Started
+An algorithmic trading bot that monitors selected tickers and executes trades based on the 200-day Simple Moving Average (SMA) strategy.
 
-First, run the development server:
+## Strategy
+
+The bot checks each ticker every 2 weeks and:
+- **Buys** when the price moves 1% or more **above** the 200-day SMA (momentum strategy)
+- **Sells** when the price moves 1% or more **below** the 200-day SMA (trend weakness)
+- **Holds** when the price is within 1% of the 200-day SMA
+
+## Setup
+
+### 1. Install Dependencies
 
 ```bash
-npm run dev
+npm install
 # or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configure Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.example` to `.env` and fill in your credentials:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env
+```
 
-## Learn More
+Edit `.env` with your Robinhood credentials:
+```
+ROBINHOOD_USERNAME=your_username
+ROBINHOOD_PASSWORD=your_password
+ROBINHOOD_MFA_CODE=  # Optional if 2FA is enabled
+TRADE_AMOUNT=1000  # Dollar amount per buy order
+DRY_RUN=true  # Set to false for real trades
+```
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Configure Tickers
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Edit `config/tickers.json` to add your desired tickers:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```json
+{
+  "tickers": [
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "TSLA"
+  ]
+}
+```
 
-## Deploy on Vercel
+## Usage
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Run Locally (Manual Execution)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For local testing:
+
+```bash
+npm run trading-bot
+```
+
+### Deploy to Vercel with Cron Jobs
+
+The bot is configured to run automatically on Vercel using cron jobs.
+
+**1. Deploy to Vercel:**
+
+```bash
+# Install Vercel CLI if you haven't already
+npm i -g vercel
+
+# Deploy
+vercel
+```
+
+**2. Set Environment Variables in Vercel:**
+
+Go to your Vercel project settings → Environment Variables and add:
+- `ROBINHOOD_USERNAME`
+- `ROBINHOOD_PASSWORD`
+- `ROBINHOOD_MFA_CODE` (if 2FA is enabled)
+- `ROBINHOOD_CLIENT_ID` (optional, defaults to public client ID)
+- `TRADE_AMOUNT` (default: 1000)
+- `DRY_RUN` (set to `true` for testing, `false` for real trades)
+- `CRON_SECRET` (optional, for additional security)
+
+**3. Cron Schedule:**
+
+The bot is configured in `vercel.json` to run on the **1st and 15th of each month at 9:00 AM UTC**. 
+
+To modify the schedule, edit `vercel.json`:
+```json
+{
+  "crons": [
+    {
+      "path": "/api/trading-bot",
+      "schedule": "0 9 1,15 * *"  // 9 AM UTC on 1st and 15th of each month
+    }
+  ]
+}
+```
+
+**4. Manual Trigger (for testing):**
+
+You can manually trigger the bot by visiting:
+```
+https://your-app.vercel.app/api/trading-bot
+```
+
+Or using curl:
+```bash
+curl https://your-app.vercel.app/api/trading-bot
+```
+
+## Important Notes
+
+### ⚠️ Robinhood API Authentication
+
+**Current Implementation**: The bot now implements Robinhood's OAuth2 authentication flow as documented at [https://docs.robinhood.com/crypto/trading/#section/Authentication](https://docs.robinhood.com/crypto/trading/#section/Authentication).
+
+The authentication flow includes:
+1. **Device Token Generation**: Generates a unique device token for each session
+2. **OAuth2 Token Request**: Uses device token + credentials to obtain access token
+3. **Token Refresh**: Supports refreshing expired access tokens
+
+**Note**: While this follows Robinhood's documented authentication pattern, be aware that:
+- Robinhood's API is not officially public
+- The API may change without notice
+- Using automated trading may violate Robinhood's Terms of Service
+- Your account could be restricted
+
+**Testing**: Always start with `DRY_RUN=true` to test the logic without executing real trades.
+
+### ⚠️ Risk Management
+
+- **Start with DRY_RUN=true** to test the bot without executing real trades
+- Test thoroughly before enabling real trading
+- Be aware of pattern day trading rules (accounts under $25k)
+- Consider implementing additional safeguards (stop losses, position sizing, etc.)
+
+### ⚠️ Legal & Compliance
+
+- Ensure compliance with Robinhood's Terms of Service
+- Be aware of trading regulations in your jurisdiction
+- Consider consulting with a financial advisor
+- This bot is for educational purposes - use at your own risk
+
+## Project Structure
+
+```
+├── config/
+│   └── tickers.json          # List of tickers to monitor
+├── lib/
+│   ├── robinhood.ts          # Robinhood API client
+│   ├── sma.ts                # SMA calculation utilities
+│   └── trading-strategy.ts   # Trading logic
+├── scripts/
+│   └── trading-bot.ts        # Main bot script
+└── .env                      # Environment variables (not in git)
+```
+
+## Development
+
+This is a [Next.js](https://nextjs.org) project, but the trading bot runs as a standalone Node.js script.
+
+To run the Next.js app:
+```bash
+npm run dev
+```
+
+## Next Steps
+
+1. **Implement proper Robinhood authentication** (see notes above)
+2. **Add error handling and retry logic**
+3. **Implement logging** (consider using Winston or similar)
+4. **Add position management** (track what you own)
+5. **Add email/notification alerts** for trades
+6. **Backtest your strategy** before going live
+7. **Add unit tests** for critical functions
+
+## Disclaimer
+
+This software is provided for educational purposes only. Trading stocks involves risk, and you should never invest more than you can afford to lose. The authors are not responsible for any financial losses incurred from using this bot.
