@@ -193,22 +193,31 @@ This bot is for **informational and educational purposes only**. The signals pro
 ├── app/
 │   ├── api/
 │   │   ├── tickers/
-│   │   │   ├── route.ts        # GET/PUT tickers from Edge Config
-│   │   │   └── preview/
-│   │   │       └── route.ts    # Preview ticker with market data
+│   │   │   └── route.ts        # GET tickers (backward compat)
 │   │   └── trading-bot/
-│   │       └── route.ts        # API endpoint for weekly analysis
-│   ├── page.tsx                # Dashboard UI with ticker management
+│   │       └── route.ts        # Cron endpoint for weekly analysis
+│   ├── page.tsx                # Server Component (fetches data)
 │   └── layout.tsx              # Root layout
+├── components/
+│   ├── ticker-manager.tsx      # Client Component for ticker mgmt
+│   └── dry-run-tester.tsx      # Client Component for testing
 ├── config/
 │   └── tickers.json            # Fallback list of tickers
 ├── lib/
+│   ├── ticker-queries.ts       # Data fetching (for Server Components)
+│   ├── ticker-actions.ts       # Server Actions (mutations only)
 │   ├── telegram.ts             # Telegram bot service
 │   ├── charts.ts               # Chart generation utilities
 │   ├── sma.ts                  # SMA calculation utilities
 │   └── trading-strategy.ts     # Analysis logic
 └── .env                        # Environment variables (not in git)
 ```
+
+**Architecture:**
+- **Server Components** handle data fetching on initial load
+- **Server Actions** handle mutations (updating tickers)
+- **Client Components** handle user interactions
+- Follows Next.js 14+ best practices with App Router
 
 ## Development
 
