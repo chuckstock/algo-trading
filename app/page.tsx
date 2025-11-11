@@ -18,7 +18,7 @@ interface ExecutionResult {
 	timestamp: string;
 	dryRun: boolean;
 	tickers: string[];
-	signals: TradingSignal[];
+	analyses: TradingSignal[];
 	error?: string;
 }
 
@@ -41,6 +41,7 @@ export default function Home() {
 			});
 
 			const data = await response.json();
+			console.log("🚀 ~ triggerDryRun ~ data:", data);
 
 			if (!response.ok) {
 				throw new Error(
@@ -258,7 +259,7 @@ export default function Home() {
 										Buy Signals
 									</p>
 									<p className="text-2xl font-bold text-green-600 dark:text-green-400">
-										{result.signals.filter((s) => s.action === "buy").length}
+										{result.analyses.filter((a) => a.action === "buy").length}
 									</p>
 								</div>
 								<div className="bg-red-50 dark:bg-red-950/20 rounded-lg p-3">
@@ -266,7 +267,7 @@ export default function Home() {
 										Sell Signals
 									</p>
 									<p className="text-2xl font-bold text-red-600 dark:text-red-400">
-										{result.signals.filter((s) => s.action === "sell").length}
+										{result.analyses.filter((a) => a.action === "sell").length}
 									</p>
 								</div>
 								<div className="bg-yellow-50 dark:bg-yellow-950/20 rounded-lg p-3">
@@ -274,7 +275,7 @@ export default function Home() {
 										Hold Signals
 									</p>
 									<p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-										{result.signals.filter((s) => s.action === "hold").length}
+										{result.analyses.filter((a) => a.action === "hold").length}
 									</p>
 								</div>
 							</div>
@@ -286,30 +287,30 @@ export default function Home() {
 								Ticker Analysis
 							</h2>
 							<div className="space-y-3">
-								{result.signals.map((signal) => (
+								{result.analyses.map((analysis) => (
 									<div
-										key={signal.symbol}
+										key={analysis.symbol}
 										className={`border rounded-lg p-4 ${getActionBgColor(
-											signal.action,
+											analysis.action,
 										)}`}
 									>
 										<div className="flex items-start justify-between mb-2">
 											<div className="flex items-center gap-3">
 												<span className="font-mono text-lg font-bold text-black dark:text-zinc-50">
-													{signal.symbol}
+													{analysis.symbol}
 												</span>
 												<span
 													className={`px-2 py-1 rounded text-xs font-semibold uppercase ${getActionColor(
-														signal.action,
+														analysis.action,
 													)}`}
 												>
-													{signal.action}
+													{analysis.action}
 												</span>
 											</div>
-											{signal.action !== "error" && (
+											{analysis.action !== "error" && (
 												<div className="text-right">
 													<p className="text-sm font-semibold text-black dark:text-zinc-50">
-														${signal.currentPrice.toFixed(2)}
+														${analysis.currentPrice.toFixed(2)}
 													</p>
 													<p className="text-xs text-zinc-600 dark:text-zinc-400">
 														Current Price
@@ -318,14 +319,14 @@ export default function Home() {
 											)}
 										</div>
 
-										{signal.action !== "error" && (
+										{analysis.action !== "error" && (
 											<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
 												<div>
 													<p className="text-zinc-600 dark:text-zinc-400 mb-1">
 														200-day SMA
 													</p>
 													<p className="font-semibold text-black dark:text-zinc-50">
-														${signal.sma200.toFixed(2)}
+														${analysis.sma200.toFixed(2)}
 													</p>
 												</div>
 												<div>
@@ -334,13 +335,13 @@ export default function Home() {
 													</p>
 													<p
 														className={`font-semibold ${
-															signal.deviation > 0
+															analysis.deviation > 0
 																? "text-green-600 dark:text-green-400"
 																: "text-red-600 dark:text-red-400"
 														}`}
 													>
-														{signal.deviation > 0 ? "+" : ""}
-														{(signal.deviation * 100).toFixed(2)}%
+														{analysis.deviation > 0 ? "+" : ""}
+														{(analysis.deviation * 100).toFixed(2)}%
 													</p>
 												</div>
 												<div className="md:col-span-2">
@@ -348,15 +349,15 @@ export default function Home() {
 														Reason
 													</p>
 													<p className="text-black dark:text-zinc-50">
-														{signal.reason}
+														{analysis.reason}
 													</p>
 												</div>
 											</div>
 										)}
 
-										{signal.action === "error" && (
+										{analysis.action === "error" && (
 											<p className="text-sm text-red-600 dark:text-red-400 mt-2">
-												{signal.reason}
+												{analysis.reason}
 											</p>
 										)}
 									</div>
