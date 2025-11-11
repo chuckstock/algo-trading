@@ -1,5 +1,6 @@
-import { RobinhoodClient } from "@/lib/robinhood";
-import { executeTradingStrategy } from "@/lib/trading-strategy";
+import { analyzeTicker } from "@/lib/trading-strategy";
+import { createTelegramService } from "@/lib/telegram";
+import { formatAnalysisMessage, generateSummaryChart } from "@/lib/charts";
 import { readFileSync } from "fs";
 import { type NextRequest, NextResponse } from "next/server";
 import { join } from "path";
@@ -23,8 +24,8 @@ function loadTickers(): string[] {
 }
 
 /**
- * Vercel Cron Job Handler
- * This endpoint is triggered by Vercel cron jobs
+ * Vercel Cron Job Handler - Weekly Market Analysis
+ * This endpoint is triggered by Vercel cron jobs every Friday at market close
  * See vercel.json for cron configuration
  */
 export async function GET(request: NextRequest) {
@@ -42,107 +43,87 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		console.log("\n🤖 Starting Trading Bot...");
+		console.log("\n📊 Starting Weekly Market Analysis...");
 		console.log(`⏰ Execution time: ${new Date().toISOString()}\n`);
 
 		// Load tickers
 		const tickers = loadTickers();
 		console.log(
-			`📋 Monitoring ${tickers.length} tickers: ${tickers.join(", ")}\n`,
+			`📋 Analyzing ${tickers.length} tickers: ${tickers.join(", ")}\n`,
 		);
 
-		// Check if we're in dry run mode
-		const dryRun =
-			process.env.DRY_RUN === "true" || process.env.DRY_RUN === "1";
-
-		// Collect signals for response
-		const signals: Array<{
-			symbol: string;
-			action: string;
-			currentPrice: number;
-			sma200: number;
-			deviation: number;
-			reason: string;
-		}> = [];
-
-		// Analyze each ticker and collect signals (no auth needed for analysis)
-		const { analyzeTicker } = await import("@/lib/trading-strategy");
+		// Analyze each ticker and collect results
+		const analyses = [];
 		for (const ticker of tickers) {
 			try {
-				const signal = await analyzeTicker(ticker);
-				signals.push({
-					symbol: signal.symbol,
-					action: signal.action,
-					currentPrice: signal.currentPrice,
-					sma200: signal.sma200,
-					deviation: signal.deviation,
-					reason: signal.reason,
-				});
+				const analysis = await analyzeTicker(ticker);
+				analyses.push(analysis);
+				const deviation = (analysis.deviation * 100).toFixed(2);
+				console.log(`✅ ${ticker}: ${analysis.action.toUpperCase()} (${analysis.deviation > 0 ? '+' : ''}${deviation}%)`);
 			} catch (error: any) {
-				signals.push({
-					symbol: ticker,
-					action: "error",
-					currentPrice: 0,
-					sma200: 0,
-					deviation: 0,
-					reason: error.message || "Failed to analyze",
-				});
+				console.error(`❌ ${ticker}: Failed to analyze - ${error.message}`);
+				// Skip failed analyses
 			}
 		}
 
-		// Only authenticate and execute trades if not in dry run mode
-		if (!dryRun) {
-			// Validate environment variables for live trading
-			if (!process.env.ROBINHOOD_USERNAME || !process.env.ROBINHOOD_PASSWORD) {
-				throw new Error(
-					"ROBINHOOD_USERNAME and ROBINHOOD_PASSWORD must be set for live trading",
-				);
-			}
+		if (analyses.length === 0) {
+			throw new Error("No tickers were successfully analyzed");
+		}
 
-			// Initialize Robinhood client
-			const robinhoodClient = new RobinhoodClient();
+		console.log("\n📈 Generating charts...");
 
-			// Login to Robinhood
-			console.log("🔐 Authenticating with Robinhood...");
-			try {
-				await robinhoodClient.login({
-					username: process.env.ROBINHOOD_USERNAME,
-					password: process.env.ROBINHOOD_PASSWORD,
-					mfaCode: process.env.ROBINHOOD_MFA_CODE,
-				});
-				console.log("✅ Authentication successful\n");
-			} catch (error: any) {
-				console.error("❌ Authentication failed:", error.message);
-				return NextResponse.json(
-					{
-						error: "Authentication failed",
-						message: error.message,
-						signals, // Return signals even if auth fails
-					},
-					{ status: 401 },
-				);
-			}
+		// Generate summary chart
+		const summaryChartUrl = generateSummaryChart(analyses);
+		console.log("✅ Summary chart generated");
 
-			// Execute trades
-			await executeTradingStrategy(tickers, robinhoodClient, false);
+		// Format analysis message
+		const message = formatAnalysisMessage(analyses);
+
+		// Send to Telegram
+		console.log("\n📱 Sending to Telegram...");
+		try {
+			const telegram = createTelegramService();
+
+			// Send text summary first
+			await telegram.sendMessage(message);
+
+			// Send summary chart
+			await telegram.sendPhoto(summaryChartUrl, "Weekly Market Analysis Summary");
+
+			console.log("✅ Successfully sent weekly report to Telegram");
+		} catch (error: any) {
+			console.error("❌ Failed to send Telegram notification:", error.message);
+			// Don't fail the whole request if Telegram fails
+			return NextResponse.json({
+				success: false,
+				error: "Failed to send Telegram notification",
+				message: error.message,
+				timestamp: new Date().toISOString(),
+				analyses,
+				chartUrl: summaryChartUrl,
+			}, { status: 500 });
 		}
 
 		return NextResponse.json({
 			success: true,
-			message: dryRun
-				? "Trading bot analysis completed (DRY RUN - No trades executed)"
-				: "Trading bot execution completed",
+			message: "Weekly market analysis completed and sent to Telegram",
 			timestamp: new Date().toISOString(),
-			dryRun,
 			tickers,
-			signals,
+			analyses: analyses.map(a => ({
+				symbol: a.symbol,
+				action: a.action,
+				currentPrice: a.currentPrice,
+				sma200: a.sma200,
+				deviation: a.deviation,
+			})),
+			chartUrl: summaryChartUrl,
 		});
 	} catch (error: any) {
-		console.error("❌ Trading bot execution failed:", error);
+		console.error("❌ Market analysis failed:", error);
 
 		return NextResponse.json(
 			{
-				error: "Trading bot execution failed",
+				error: "Market analysis failed",
 				message: error.message,
 				timestamp: new Date().toISOString(),
 			},

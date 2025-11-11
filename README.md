@@ -1,13 +1,15 @@
-# Algo Trading Bot
+# Weekly Market Analysis Bot
 
-An algorithmic trading bot that monitors selected tickers and executes trades based on the 200-day Simple Moving Average (SMA) strategy.
+A market analysis bot that monitors selected tickers using the 200-day Simple Moving Average (SMA) strategy and sends weekly chart updates to your Telegram device every Friday at market close.
 
 ## Strategy
 
-The bot checks each ticker every 2 weeks and:
-- **Buys** when the price moves 1% or more **above** the 200-day SMA (momentum strategy)
-- **Sells** when the price moves 1% or more **below** the 200-day SMA (trend weakness)
-- **Holds** when the price is within 1% of the 200-day SMA
+The bot analyzes each ticker weekly and provides:
+- **BUY signal** when the price is 1% or more **above** the 200-day SMA (momentum)
+- **SELL signal** when the price is 1% or more **below** the 200-day SMA (trend weakness)
+- **HOLD signal** when the price is within 1% of the 200-day SMA
+
+Instead of automatically executing trades, the bot sends you detailed charts and analysis via Telegram, allowing you to make informed trading decisions.
 
 ## Setup
 
@@ -19,7 +21,19 @@ npm install
 bun install
 ```
 
-### 2. Configure Environment Variables
+### 2. Set Up Telegram Bot
+
+**Create a Telegram Bot:**
+1. Open Telegram and search for `@BotFather`
+2. Send `/newbot` and follow the instructions
+3. Save the **Bot Token** you receive
+4. Start a chat with your new bot
+5. Get your **Chat ID**:
+   - Send a message to your bot
+   - Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
+   - Find your `chat.id` in the response
+
+### 3. Configure Environment Variables
 
 Copy `.env.example` to `.env` and fill in your credentials:
 
@@ -27,16 +41,14 @@ Copy `.env.example` to `.env` and fill in your credentials:
 cp .env.example .env
 ```
 
-Edit `.env` with your Robinhood credentials:
+Edit `.env` with your Telegram credentials:
 ```
-ROBINHOOD_USERNAME=your_username
-ROBINHOOD_PASSWORD=your_password
-ROBINHOOD_MFA_CODE=  # Optional if 2FA is enabled
-TRADE_AMOUNT=1000  # Dollar amount per buy order
-DRY_RUN=true  # Set to false for real trades
+TELEGRAM_BOT_TOKEN=your_bot_token_from_botfather
+TELEGRAM_CHAT_ID=your_chat_id
+CRON_SECRET=your_secret_for_vercel_cron  # Optional
 ```
 
-### 3. Configure Tickers
+### 4. Configure Tickers
 
 Edit `config/tickers.json` to add your desired tickers:
 
@@ -54,17 +66,9 @@ Edit `config/tickers.json` to add your desired tickers:
 
 ## Usage
 
-### Run Locally (Manual Execution)
-
-For local testing:
-
-```bash
-npm run trading-bot
-```
-
 ### Deploy to Vercel with Cron Jobs
 
-The bot is configured to run automatically on Vercel using cron jobs.
+The bot is configured to run automatically on Vercel using cron jobs to send weekly market analysis every Friday at market close.
 
 **1. Deploy to Vercel:**
 
@@ -79,25 +83,21 @@ vercel
 **2. Set Environment Variables in Vercel:**
 
 Go to your Vercel project settings → Environment Variables and add:
-- `ROBINHOOD_USERNAME`
-- `ROBINHOOD_PASSWORD`
-- `ROBINHOOD_MFA_CODE` (if 2FA is enabled)
-- `ROBINHOOD_CLIENT_ID` (optional, defaults to public client ID)
-- `TRADE_AMOUNT` (default: 1000)
-- `DRY_RUN` (set to `true` for testing, `false` for real trades)
+- `TELEGRAM_BOT_TOKEN` (required - from BotFather)
+- `TELEGRAM_CHAT_ID` (required - your chat ID)
 - `CRON_SECRET` (optional, for additional security)
 
 **3. Cron Schedule:**
 
-The bot is configured in `vercel.json` to run on the **1st and 15th of each month at 9:00 AM UTC**. 
+The bot is configured in `vercel.json` to run **every Friday at 9:00 PM UTC** (approximately 4-5 PM ET, depending on DST).
 
-To modify the schedule, edit `vercel.json`:
+The schedule in `vercel.json`:
 ```json
 {
   "crons": [
     {
       "path": "/api/trading-bot",
-      "schedule": "0 9 1,15 * *"  // 9 AM UTC on 1st and 15th of each month
+      "schedule": "0 21 * * 5"  // 9 PM UTC every Friday
     }
   ]
 }
@@ -105,7 +105,7 @@ To modify the schedule, edit `vercel.json`:
 
 **4. Manual Trigger (for testing):**
 
-You can manually trigger the bot by visiting:
+You can manually trigger the analysis by visiting:
 ```
 https://your-app.vercel.app/api/trading-bot
 ```
@@ -115,72 +115,70 @@ Or using curl:
 curl https://your-app.vercel.app/api/trading-bot
 ```
 
+### What You'll Receive
+
+Every Friday after market close, you'll receive a Telegram message containing:
+- 📊 **Summary statistics** (number of BUY/SELL/HOLD signals)
+- 📈 **Detailed analysis** for each ticker with current price and deviation from 200-day SMA
+- 📉 **Visual chart** showing all tickers and their signals
+
 ## Important Notes
 
-### ⚠️ Robinhood API Authentication
+### 📱 Telegram Bot Setup
 
-**Current Implementation**: The bot now implements Robinhood's OAuth2 authentication flow as documented at [https://docs.robinhood.com/crypto/trading/#section/Authentication](https://docs.robinhood.com/crypto/trading/#section/Authentication).
+Make sure to:
+1. Start a chat with your bot before it can send you messages
+2. Keep your bot token secure (never commit it to git)
+3. The bot sends messages using the chat ID you configured
 
-The authentication flow includes:
-1. **Device Token Generation**: Generates a unique device token for each session
-2. **OAuth2 Token Request**: Uses device token + credentials to obtain access token
-3. **Token Refresh**: Supports refreshing expired access tokens
+### 📊 Data Source
 
-**Note**: While this follows Robinhood's documented authentication pattern, be aware that:
-- Robinhood's API is not officially public
-- The API may change without notice
-- Using automated trading may violate Robinhood's Terms of Service
-- Your account could be restricted
+- Market data is fetched from **Yahoo Finance** API
+- The bot analyzes the last 200 trading days to calculate the SMA
+- Analysis runs automatically every Friday at market close
 
-**Testing**: Always start with `DRY_RUN=true` to test the logic without executing real trades.
+### ⚠️ Disclaimer
 
-### ⚠️ Risk Management
-
-- **Start with DRY_RUN=true** to test the bot without executing real trades
-- Test thoroughly before enabling real trading
-- Be aware of pattern day trading rules (accounts under $25k)
-- Consider implementing additional safeguards (stop losses, position sizing, etc.)
-
-### ⚠️ Legal & Compliance
-
-- Ensure compliance with Robinhood's Terms of Service
-- Be aware of trading regulations in your jurisdiction
+This bot is for **informational and educational purposes only**. The signals provided are based on a simple technical indicator and should not be considered financial advice. Always:
+- Do your own research before making trading decisions
 - Consider consulting with a financial advisor
-- This bot is for educational purposes - use at your own risk
+- Be aware of trading regulations in your jurisdiction
+- Understand that past performance does not guarantee future results
 
 ## Project Structure
 
 ```
+├── app/
+│   └── api/
+│       └── trading-bot/
+│           └── route.ts      # API endpoint for weekly analysis
 ├── config/
 │   └── tickers.json          # List of tickers to monitor
 ├── lib/
-│   ├── robinhood.ts          # Robinhood API client
+│   ├── telegram.ts           # Telegram bot service
+│   ├── charts.ts             # Chart generation utilities
 │   ├── sma.ts                # SMA calculation utilities
-│   └── trading-strategy.ts   # Trading logic
-├── scripts/
-│   └── trading-bot.ts        # Main bot script
+│   └── trading-strategy.ts   # Analysis logic
 └── .env                      # Environment variables (not in git)
 ```
 
 ## Development
 
-This is a [Next.js](https://nextjs.org) project, but the trading bot runs as a standalone Node.js script.
+This is a [Next.js](https://nextjs.org) project. To run the development server:
 
-To run the Next.js app:
 ```bash
 npm run dev
 ```
 
-## Next Steps
+Then open [http://localhost:3000](http://localhost:3000) to view the dashboard.
 
-1. **Implement proper Robinhood authentication** (see notes above)
-2. **Add error handling and retry logic**
-3. **Implement logging** (consider using Winston or similar)
-4. **Add position management** (track what you own)
-5. **Add email/notification alerts** for trades
-6. **Backtest your strategy** before going live
-7. **Add unit tests** for critical functions
+## Future Enhancements
 
-## Disclaimer
-
-This software is provided for educational purposes only. Trading stocks involves risk, and you should never invest more than you can afford to lose. The authors are not responsible for any financial losses incurred from using this bot.
+Potential improvements to consider:
+1. **Additional technical indicators** (RSI, MACD, Bollinger Bands)
+2. **Individual ticker charts** sent along with the summary
+3. **Historical performance tracking** of signals
+4. **Customizable alert thresholds** per ticker
+5. **Multiple notification channels** (email, Discord, etc.)
+6. **Backtesting dashboard** to evaluate strategy performance
+7. **Mobile app** for easier chart viewing
