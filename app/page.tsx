@@ -2,6 +2,7 @@
 
 import tickerConfig from "@/config/tickers.json";
 import { useState, useEffect } from "react";
+import { getTickers, previewTicker as previewTickerAction, updateTickers } from "@/lib/ticker-actions";
 
 interface TradingSignal {
 	symbol: string;
@@ -52,8 +53,7 @@ export default function Home() {
 	const loadTickers = async () => {
 		setIsLoadingTickers(true);
 		try {
-			const response = await fetch("/api/tickers");
-			const data = await response.json();
+			const data = await getTickers();
 			if (data.tickers) {
 				setCurrentTickers(data.tickers);
 				setPendingTickers(data.tickers);
@@ -82,22 +82,18 @@ export default function Home() {
 		setPreviewData(null);
 
 		try {
-			const response = await fetch("/api/tickers/preview", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ ticker: normalizedTicker }),
-			});
+			const result = await previewTickerAction(normalizedTicker);
 
-			const data = await response.json();
-
-			if (!response.ok) {
-				throw new Error(data.error || "Failed to preview ticker");
+			if (!result.success) {
+				throw new Error(result.error || "Failed to preview ticker");
 			}
 
-			setPreviewData({
-				ticker: normalizedTicker,
-				data: data.data,
-			});
+			if (result.ticker && result.data) {
+				setPreviewData({
+					ticker: result.ticker,
+					data: result.data,
+				});
+			}
 		} catch (err) {
 			setPreviewError(err instanceof Error ? err.message : "Failed to preview ticker");
 		} finally {
@@ -125,16 +121,10 @@ export default function Home() {
 		setSaveMessage(null);
 
 		try {
-			const response = await fetch("/api/tickers", {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ tickers: pendingTickers }),
-			});
+			const result = await updateTickers(pendingTickers);
 
-			const data = await response.json();
-
-			if (!response.ok) {
-				throw new Error(data.error || "Failed to save tickers");
+			if (!result.success) {
+				throw new Error(result.error || "Failed to save tickers");
 			}
 
 			setCurrentTickers(pendingTickers);
