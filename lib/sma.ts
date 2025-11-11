@@ -39,7 +39,6 @@ export async function getHistoricalData(
     };
 
     const result = await yahooFinance.historical(symbol, queryOptions);
-    console.log("🚀 ~ getHistoricalData ~ result:", result)
 
     if (!result || result.length === 0) {
       throw new Error(`No historical data found for ${symbol}`);
