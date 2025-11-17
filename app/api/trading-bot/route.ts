@@ -4,22 +4,41 @@ import { formatAnalysisMessage, generateSummaryChart } from "@/lib/charts";
 import { readFileSync } from "fs";
 import { type NextRequest, NextResponse } from "next/server";
 import { join } from "path";
+import { get } from "@vercel/edge-config";
 
 interface TickerConfig {
 	tickers: string[];
 }
 
 /**
- * Load ticker configuration
+ * Load ticker configuration from Edge Config with fallback to file
  */
-function loadTickers(): string[] {
+async function loadTickers(): Promise<string[]> {
 	try {
+		// Try to get tickers from Edge Config first
+		const edgeTickers = await get<string[]>("tickers");
+
+		if (edgeTickers && Array.isArray(edgeTickers) && edgeTickers.length > 0) {
+			console.log("📦 Loaded tickers from Edge Config");
+			return edgeTickers;
+		}
+
+		// Fallback to file if Edge Config is not configured or returns null
+		console.log("📂 Edge Config not available, falling back to file");
 		const configPath = join(process.cwd(), "config", "tickers.json");
 		const config: TickerConfig = JSON.parse(readFileSync(configPath, "utf-8"));
 		return config.tickers;
 	} catch (error) {
 		console.error("Failed to load ticker config:", error);
-		throw error;
+		// Try file as last resort
+		try {
+			const configPath = join(process.cwd(), "config", "tickers.json");
+			const config: TickerConfig = JSON.parse(readFileSync(configPath, "utf-8"));
+			return config.tickers;
+		} catch (fileError) {
+			console.error("Failed to load tickers from file:", fileError);
+			throw error;
+		}
 	}
 }
 
@@ -47,7 +66,7 @@ export async function GET(request: NextRequest) {
 		console.log(`⏰ Execution time: ${new Date().toISOString()}\n`);
 
 		// Load tickers
-		const tickers = loadTickers();
+		const tickers = await loadTickers();
 		console.log(
 			`📋 Analyzing ${tickers.length} tickers: ${tickers.join(", ")}\n`,
 		);

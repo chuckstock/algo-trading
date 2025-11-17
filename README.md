@@ -50,6 +50,10 @@ CRON_SECRET=your_secret_for_vercel_cron  # Optional
 
 ### 4. Configure Tickers
 
+You have two options for managing tickers:
+
+**Option A: Local File (Simple)**
+
 Edit `config/tickers.json` to add your desired tickers:
 
 ```json
@@ -63,6 +67,44 @@ Edit `config/tickers.json` to add your desired tickers:
   ]
 }
 ```
+
+**Option B: Vercel Edge Config (Dynamic - Recommended)**
+
+Use Edge Config to manage tickers dynamically through the web UI:
+
+1. **Create an Edge Config in Vercel:**
+   - Go to Vercel Dashboard → Storage → Edge Config
+   - Click "Create Edge Config"
+   - Name it (e.g., "algo-trading-config")
+   - Copy the Edge Config Connection String
+
+2. **Add Environment Variables:**
+   Add these to your `.env` file and Vercel project:
+   ```
+   EDGE_CONFIG=https://edge-config.vercel.com/your_id?token=your_token
+   EDGE_CONFIG_ID=ecfg_xxxxxxxxxxxxxxxxxxxxxx
+   VERCEL_API_TOKEN=your_vercel_api_token
+   ```
+
+3. **Initialize Tickers in Edge Config:**
+   - Go to Edge Config in Vercel Dashboard
+   - Add an item with key `tickers` and value:
+   ```json
+   ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
+   ```
+
+4. **Manage Tickers via Web UI:**
+   - Visit your deployed app homepage
+   - Use the "Manage Tickers" section to:
+     - Preview new tickers with current market data
+     - Add/remove tickers
+     - Save changes to Edge Config
+
+**Benefits of Edge Config:**
+- ✅ No code changes or redeployment needed
+- ✅ Live market data preview before adding tickers
+- ✅ Instant updates to your analysis
+- ✅ User-friendly web interface
 
 ## Usage
 
@@ -149,18 +191,33 @@ This bot is for **informational and educational purposes only**. The signals pro
 
 ```
 ├── app/
-│   └── api/
-│       └── trading-bot/
-│           └── route.ts      # API endpoint for weekly analysis
+│   ├── api/
+│   │   ├── tickers/
+│   │   │   └── route.ts        # GET tickers (backward compat)
+│   │   └── trading-bot/
+│   │       └── route.ts        # Cron endpoint for weekly analysis
+│   ├── page.tsx                # Server Component (fetches data)
+│   └── layout.tsx              # Root layout
+├── components/
+│   ├── ticker-manager.tsx      # Client Component for ticker mgmt
+│   └── dry-run-tester.tsx      # Client Component for testing
 ├── config/
-│   └── tickers.json          # List of tickers to monitor
+│   └── tickers.json            # Fallback list of tickers
 ├── lib/
-│   ├── telegram.ts           # Telegram bot service
-│   ├── charts.ts             # Chart generation utilities
-│   ├── sma.ts                # SMA calculation utilities
-│   └── trading-strategy.ts   # Analysis logic
-└── .env                      # Environment variables (not in git)
+│   ├── ticker-queries.ts       # Data fetching (for Server Components)
+│   ├── ticker-actions.ts       # Server Actions (mutations only)
+│   ├── telegram.ts             # Telegram bot service
+│   ├── charts.ts               # Chart generation utilities
+│   ├── sma.ts                  # SMA calculation utilities
+│   └── trading-strategy.ts     # Analysis logic
+└── .env                        # Environment variables (not in git)
 ```
+
+**Architecture:**
+- **Server Components** handle data fetching on initial load
+- **Server Actions** handle mutations (updating tickers)
+- **Client Components** handle user interactions
+- Follows Next.js 14+ best practices with App Router
 
 ## Development
 
