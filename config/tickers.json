@@ -1,13 +1,13 @@
 {
-  "tickers": [
-    "QQQ",
-    "VOO",
-    "SPY",
-    "TSLA",
-    "HOOD",
-    "COIN",
-    "BTC-USD",
-    "ETH-USD"
-  ]
+	"tickers": [
+		"QQQ",
+		"VOO",
+		"SPY",
+		"TSLA",
+		"HOOD",
+		"COIN",
+		"GOOG",
+		"BTC-USD",
+		"ETH-USD"
+	]
 }
-
