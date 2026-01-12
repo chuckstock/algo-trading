@@ -1,4 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
+import { withRetry } from './utils';
 
 interface TelegramConfig {
   botToken: string;
@@ -19,9 +20,14 @@ export class TelegramService {
    */
   async sendMessage(message: string): Promise<void> {
     try {
-      await this.bot.sendMessage(this.chatId, message, {
-        parse_mode: 'Markdown',
-      });
+      await withRetry(
+        () => this.bot.sendMessage(this.chatId, message, {
+          parse_mode: 'Markdown',
+        }),
+        2,
+        3000,
+        "Telegram sendMessage"
+      );
       console.log('✅ Message sent successfully to Telegram');
     } catch (error) {
       console.error('❌ Failed to send Telegram message:', error);
@@ -34,10 +40,15 @@ export class TelegramService {
    */
   async sendPhoto(photoUrl: string, caption?: string): Promise<void> {
     try {
-      await this.bot.sendPhoto(this.chatId, photoUrl, {
-        caption,
-        parse_mode: 'Markdown',
-      });
+      await withRetry(
+        () => this.bot.sendPhoto(this.chatId, photoUrl, {
+          caption,
+          parse_mode: 'Markdown',
+        }),
+        2,
+        3000,
+        "Telegram sendPhoto"
+      );
       console.log('✅ Photo sent successfully to Telegram');
     } catch (error) {
       console.error('❌ Failed to send Telegram photo:', error);
@@ -57,7 +68,12 @@ export class TelegramService {
         parse_mode: 'Markdown' as const,
       }));
 
-      await this.bot.sendMediaGroup(this.chatId, media);
+      await withRetry(
+        () => this.bot.sendMediaGroup(this.chatId, media),
+        2,
+        3000,
+        "Telegram sendMediaGroup"
+      );
       console.log('✅ Photo group sent successfully to Telegram');
     } catch (error) {
       console.error('❌ Failed to send Telegram photo group:', error);
