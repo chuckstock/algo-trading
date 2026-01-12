@@ -29,45 +29,6 @@ export class RobinhoodClient {
 				"Content-Type": "application/json",
 			},
 		});
-
-		// Add interceptor for 429 handling and retries
-		this.client.interceptors.response.use(
-			(response) => response,
-			async (error) => {
-				const { config, response } = error;
-				
-				// Only retry if it's a 429 and we haven't reached max retries
-				if (response?.status === 429 && !config._retry) {
-					config._retry = true;
-					config._retryCount = (config._retryCount || 0) + 1;
-					
-					if (config._retryCount <= 3) {
-						// Get retry-after header or default to exponential backoff
-						const retryAfterHeader = response.headers["retry-after"];
-						let delay = 0;
-						
-						if (retryAfterHeader) {
-							// retry-after can be in seconds or a date string
-							delay = isNaN(Number(retryAfterHeader)) 
-								? new Date(retryAfterHeader).getTime() - Date.now()
-								: Number(retryAfterHeader) * 1000;
-						} else {
-							// Exponential backoff: 2s, 4s, 8s...
-							delay = Math.pow(2, config._retryCount) * 1000;
-						}
-						
-						console.warn(
-							`⚠️ Robinhood API rate limit (429). Waiting ${delay}ms before retry ${config._retryCount}/3...`
-						);
-						
-						await new Promise((resolve) => setTimeout(resolve, delay));
-						return this.client(config);
-					}
-				}
-				
-				return Promise.reject(error);
-			}
-		);
 	}
 
 	/**

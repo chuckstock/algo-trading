@@ -1,5 +1,4 @@
 import YahooFinance from "yahoo-finance2";
-import { withRetry } from "./utils";
 
 export interface PriceData {
 	date: Date;
@@ -41,12 +40,7 @@ export async function getHistoricalData(
 			interval: "1d" as const,
 		};
 
-		const result = await withRetry(
-			() => yahooFinance.historical(symbol, queryOptions),
-			3,
-			2000,
-			`Yahoo Finance (${symbol})`,
-		);
+		const result = await yahooFinance.historical(symbol, queryOptions);
 
 		if (!result || result.length === 0) {
 			throw new Error(`No historical data found for ${symbol}`);
