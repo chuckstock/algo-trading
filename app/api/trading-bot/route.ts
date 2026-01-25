@@ -1,6 +1,6 @@
-import { analyzeTicker } from "@/lib/trading-strategy";
-import { createTelegramService } from "@/lib/telegram";
 import { formatAnalysisMessage, generateSummaryChart } from "@/lib/charts";
+import { createTelegramService } from "@/lib/telegram";
+import { analyzeTicker } from "@/lib/trading-strategy";
 import { readFileSync } from "fs";
 import { type NextRequest, NextResponse } from "next/server";
 import { join } from "path";
@@ -24,8 +24,20 @@ function loadTickers(): string[] {
 }
 
 /**
+ * Check if today is the last day of the month
+ */
+function isLastDayOfMonth(): boolean {
+	const now = new Date();
+	const tomorrow = new Date(now);
+	tomorrow.setDate(tomorrow.getDate() + 1);
+	return tomorrow.getDate() === 1;
+}
+
+/**
  * Vercel Cron Job Handler - Weekly Market Analysis
- * This endpoint is triggered by Vercel cron jobs every Friday at market close
+ * This endpoint is triggered by Vercel cron jobs:
+ * - Every Friday at 5pm (market close)
+ * - Last day of the month at market close (scheduled for days 28-31, verified in code)
  * See vercel.json for cron configuration
  */
 export async function GET(request: NextRequest) {
@@ -42,8 +54,24 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 	}
 
+	// Check if this is a last-day-of-month cron trigger (days 28-31)
+	// Only proceed if it's actually the last day of the month
+	const now = new Date();
+	const dayOfMonth = now.getDate();
+	if (dayOfMonth >= 28 && dayOfMonth <= 31 && !isLastDayOfMonth()) {
+		console.log(
+			`⏭️ Skipping execution - day ${dayOfMonth} is not the last day of the month`,
+		);
+		return NextResponse.json({
+			success: true,
+			message: "Skipped - not the last day of the month",
+			timestamp: new Date().toISOString(),
+		});
+	}
+
 	try {
-		console.log("\n📊 Starting Weekly Market Analysis...");
+		const reportType = isLastDayOfMonth() ? "Monthly" : "Weekly";
+		console.log(`\n📊 Starting ${reportType} Market Analysis...`);
 		console.log(`⏰ Execution time: ${new Date().toISOString()}\n`);
 
 		// Load tickers
@@ -59,7 +87,9 @@ export async function GET(request: NextRequest) {
 				const analysis = await analyzeTicker(ticker);
 				analyses.push(analysis);
 				const deviation = (analysis.deviation * 100).toFixed(2);
-				console.log(`✅ ${ticker}: ${analysis.action.toUpperCase()} (${analysis.deviation > 0 ? '+' : ''}${deviation}%)`);
+				console.log(
+					`✅ ${ticker}: ${analysis.action.toUpperCase()} (${analysis.deviation > 0 ? "+" : ""}${deviation}%)`,
+				);
 			} catch (error: any) {
 				console.error(`❌ ${ticker}: Failed to analyze - ${error.message}`);
 				// Skip failed analyses
@@ -88,28 +118,35 @@ export async function GET(request: NextRequest) {
 			await telegram.sendMessage(message);
 
 			// Send summary chart
-			await telegram.sendPhoto(summaryChartUrl, "Weekly Market Analysis Summary");
+			await telegram.sendPhoto(
+				summaryChartUrl,
+				"Weekly Market Analysis Summary",
+			);
 
-			console.log("✅ Successfully sent weekly report to Telegram");
+			const reportType = isLastDayOfMonth() ? "monthly" : "weekly";
+			console.log(`✅ Successfully sent ${reportType} report to Telegram`);
 		} catch (error: any) {
 			console.error("❌ Failed to send Telegram notification:", error.message);
 			// Don't fail the whole request if Telegram fails
-			return NextResponse.json({
-				success: false,
-				error: "Failed to send Telegram notification",
-				message: error.message,
-				timestamp: new Date().toISOString(),
-				analyses,
-				chartUrl: summaryChartUrl,
-			}, { status: 500 });
+			return NextResponse.json(
+				{
+					success: false,
+					error: "Failed to send Telegram notification",
+					message: error.message,
+					timestamp: new Date().toISOString(),
+					analyses,
+					chartUrl: summaryChartUrl,
+				},
+				{ status: 500 },
+			);
 		}
 
 		return NextResponse.json({
 			success: true,
-			message: "Weekly market analysis completed and sent to Telegram",
+			message: `${reportType} market analysis completed and sent to Telegram`,
 			timestamp: new Date().toISOString(),
 			tickers,
-			analyses: analyses.map(a => ({
+			analyses: analyses.map((a) => ({
 				symbol: a.symbol,
 				action: a.action,
 				currentPrice: a.currentPrice,
