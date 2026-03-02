@@ -5,7 +5,8 @@ export interface TradingSignal {
 	symbol: string;
 	action: "buy" | "sell" | "hold";
 	currentPrice: number;
-	sma200: number;
+	sma: number;
+	smaPeriod: number;
 	deviation: number; // Percentage deviation from SMA
 	reason: string;
 }
@@ -13,13 +14,13 @@ export interface TradingSignal {
 const THRESHOLD_PERCENT = 0.01; // 1%
 
 /**
- * Analyze a ticker and determine trading signal based on 200-day SMA
+ * Analyze a ticker and determine trading signal based on the configured SMA
  */
 export async function analyzeTicker(symbol: string): Promise<TradingSignal> {
 	try {
-		const { currentPrice, sma200 } = await getCurrentPriceAndSMA(symbol);
+		const { currentPrice, sma, smaPeriod } = await getCurrentPriceAndSMA(symbol);
 
-		const deviation = (currentPrice - sma200) / sma200;
+		const deviation = (currentPrice - sma) / sma;
 		const threshold = THRESHOLD_PERCENT;
 
 		let action: "buy" | "sell" | "hold" = "hold";
@@ -28,22 +29,23 @@ export async function analyzeTicker(symbol: string): Promise<TradingSignal> {
 		if (deviation > threshold) {
 			// Price is 1% or more above SMA - buy signal (momentum strategy)
 			action = "buy";
-			reason = `Price ($${currentPrice.toFixed(2)}) is ${(deviation * 100).toFixed(2)}% above 200-day SMA ($${sma200.toFixed(2)}) - buying on momentum`;
+			reason = `Price ($${currentPrice.toFixed(2)}) is ${(deviation * 100).toFixed(2)}% above ${smaPeriod}-day SMA ($${sma.toFixed(2)}) - buying on momentum`;
 		} else if (deviation < -threshold) {
 			// Price is 1% or more below SMA - sell signal (trend weakness)
 			action = "sell";
-			reason = `Price ($${currentPrice.toFixed(2)}) is ${Math.abs(deviation * 100).toFixed(2)}% below 200-day SMA ($${sma200.toFixed(2)}) - selling on weakness`;
+			reason = `Price ($${currentPrice.toFixed(2)}) is ${Math.abs(deviation * 100).toFixed(2)}% below ${smaPeriod}-day SMA ($${sma.toFixed(2)}) - selling on weakness`;
 		} else {
 			// Price is within threshold - hold
 			action = "hold";
-			reason = `Price ($${currentPrice.toFixed(2)}) is within ${(threshold * 100).toFixed(1)}% of 200-day SMA ($${sma200.toFixed(2)})`;
+			reason = `Price ($${currentPrice.toFixed(2)}) is within ${(threshold * 100).toFixed(1)}% of ${smaPeriod}-day SMA ($${sma.toFixed(2)})`;
 		}
 
 		return {
 			symbol,
 			action,
 			currentPrice,
-			sma200,
+			sma,
+			smaPeriod,
 			deviation,
 			reason,
 		};
@@ -73,7 +75,7 @@ export async function executeTradingStrategy(
 
 			console.log(`\n${ticker}:`);
 			console.log(`  Current Price: $${signal.currentPrice.toFixed(2)}`);
-			console.log(`  200-day SMA: $${signal.sma200.toFixed(2)}`);
+			console.log(`  ${signal.smaPeriod}-day SMA: $${signal.sma.toFixed(2)}`);
 			console.log(`  Deviation: ${(signal.deviation * 100).toFixed(2)}%`);
 			console.log(`  Action: ${signal.action.toUpperCase()}`);
 			console.log(`  Reason: ${signal.reason}`);

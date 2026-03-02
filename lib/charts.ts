@@ -4,7 +4,8 @@ import { TradingSignal } from './trading-strategy';
 export interface ChartData {
   ticker: string;
   currentPrice: number;
-  sma200: number;
+  sma: number;
+  smaPeriod: number;
   deviation: number;
   signal: 'buy' | 'sell' | 'hold';
   historicalPrices?: number[];
@@ -37,8 +38,8 @@ export function generatePriceChart(data: ChartData): string {
             borderWidth: 2,
           },
           {
-            label: '200-day SMA',
-            data: Array(data.historicalPrices?.length || 0).fill(data.sma200),
+            label: `${data.smaPeriod}-day SMA`,
+            data: Array(data.historicalPrices?.length || 0).fill(data.sma),
             borderColor: '#3b82f6',
             borderDash: [5, 5],
             fill: false,
@@ -116,7 +117,7 @@ export function generateSummaryChart(analyses: TradingSignal[]): string {
       data: {
         labels: tickers,
         datasets: [{
-          label: 'Deviation from 200-day SMA (%)',
+          label: 'Deviation from SMA (%)',
           data: deviations,
           backgroundColor: colors,
           borderColor: colors,
@@ -244,7 +245,7 @@ export function formatAnalysisMessage(analyses: TradingSignal[]): string {
     message += `\n`;
   }
 
-  message += `_Strategy: 200-day SMA momentum trading_\n`;
+  message += `_Strategy: price vs configured SMA momentum trading_\n`;
   message += `_Buy threshold: +1% above SMA_\n`;
   message += `_Sell threshold: -1% below SMA_`;
 

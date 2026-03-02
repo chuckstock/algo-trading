@@ -7,7 +7,8 @@ interface TradingSignal {
 	symbol: string;
 	action: "buy" | "sell" | "hold" | "error";
 	currentPrice: number;
-	sma200: number;
+	sma: number;
+	smaPeriod: number;
 	deviation: number;
 	reason: string;
 }
@@ -98,7 +99,7 @@ export default function Home() {
 						Algo Trading Bot
 					</h1>
 					<p className="text-lg text-zinc-600 dark:text-zinc-400">
-						Monitor tickers and execute trades based on 200-day SMA strategy
+						Monitor tickers with symbol-specific SMA strategy
 					</p>
 				</div>
 
@@ -128,11 +129,11 @@ export default function Home() {
 								Strategy
 							</p>
 							<p className="text-sm text-black dark:text-zinc-50">
-								Buy: 1%+ above 200-day SMA (momentum)
+								Buy: 1%+ above the configured SMA (momentum)
 								<br />
-								Sell: 1%+ below 200-day SMA (weakness)
+								Sell: 1%+ below the configured SMA (weakness)
 								<br />
-								Hold: Within 1% of 200-day SMA
+								Hold: Within 1% of the configured SMA
 							</p>
 						</div>
 					</div>
@@ -323,10 +324,10 @@ export default function Home() {
 											<div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
 												<div>
 													<p className="text-zinc-600 dark:text-zinc-400 mb-1">
-														200-day SMA
+														{analysis.smaPeriod}-day SMA
 													</p>
 													<p className="font-semibold text-black dark:text-zinc-50">
-														${analysis.sma200.toFixed(2)}
+														${analysis.sma.toFixed(2)}
 													</p>
 												</div>
 												<div>

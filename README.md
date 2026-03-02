@@ -1,13 +1,13 @@
 # Weekly Market Analysis Bot
 
-A market analysis bot that monitors selected tickers using the 200-day Simple Moving Average (SMA) strategy and sends weekly chart updates to your Telegram device every Friday at market close.
+A market analysis bot that monitors selected tickers using a symbol-specific Simple Moving Average (SMA) strategy and sends weekly chart updates to your Telegram device every Friday at market close.
 
 ## Strategy
 
 The bot analyzes each ticker weekly and provides:
-- **BUY signal** when the price is 1% or more **above** the 200-day SMA (momentum)
-- **SELL signal** when the price is 1% or more **below** the 200-day SMA (trend weakness)
-- **HOLD signal** when the price is within 1% of the 200-day SMA
+- **BUY signal** when the price is 1% or more **above** that ticker's configured SMA (momentum)
+- **SELL signal** when the price is 1% or more **below** that ticker's configured SMA (trend weakness)
+- **HOLD signal** when the price is within 1% of that ticker's configured SMA
 
 Instead of automatically executing trades, the bot sends you detailed charts and analysis via Telegram, allowing you to make informed trading decisions.
 
@@ -119,7 +119,7 @@ curl https://your-app.vercel.app/api/trading-bot
 
 Every Friday after market close, you'll receive a Telegram message containing:
 - 📊 **Summary statistics** (number of BUY/SELL/HOLD signals)
-- 📈 **Detailed analysis** for each ticker with current price and deviation from 200-day SMA
+- 📈 **Detailed analysis** for each ticker with current price and deviation from its configured SMA
 - 📉 **Visual chart** showing all tickers and their signals
 
 ## Important Notes
@@ -134,7 +134,7 @@ Make sure to:
 ### 📊 Data Source
 
 - Market data is fetched from **Yahoo Finance** API
-- The bot analyzes the last 200 trading days to calculate the SMA
+- The bot uses a 200-day SMA by default, with `BTC-USD` and `ETH-USD` using a 20-day SMA
 - Analysis runs automatically every Friday at market close
 
 ### ⚠️ Disclaimer

@@ -5,6 +5,16 @@ export interface PriceData {
 	close: number;
 }
 
+const DEFAULT_SMA_PERIOD = 200;
+const SYMBOL_SMA_PERIODS: Record<string, number> = {
+	"BTC-USD": 20,
+	"ETH-USD": 20,
+};
+
+export function getSMAPeriod(symbol: string): number {
+	return SYMBOL_SMA_PERIODS[symbol] ?? DEFAULT_SMA_PERIOD;
+}
+
 /**
  * Calculate Simple Moving Average (SMA) for a given period
  */
@@ -25,7 +35,7 @@ export function calculateSMA(prices: number[], period: number): number {
  */
 export async function getHistoricalData(
 	symbol: string,
-	period: number = 250, // Get more than 200 days to ensure we have enough data
+	period: number = DEFAULT_SMA_PERIOD + 50,
 ): Promise<PriceData[]> {
 	try {
 		const endDate = new Date();
@@ -57,28 +67,32 @@ export async function getHistoricalData(
 }
 
 /**
- * Get current price and 200-day SMA for a ticker
+ * Get current price and configured SMA for a ticker
  */
 export async function getCurrentPriceAndSMA(symbol: string): Promise<{
 	currentPrice: number;
-	sma200: number;
+	sma: number;
+	smaPeriod: number;
 	priceData: PriceData[];
 }> {
-	const priceData = await getHistoricalData(symbol, 250);
+	const smaPeriod = getSMAPeriod(symbol);
+	const historyWindow = Math.max(DEFAULT_SMA_PERIOD + 50, smaPeriod + 50);
+	const priceData = await getHistoricalData(symbol, historyWindow);
 
-	if (priceData.length < 200) {
+	if (priceData.length < smaPeriod) {
 		throw new Error(
-			`Insufficient data for ${symbol}. Need at least 200 days, got ${priceData.length}`,
+			`Insufficient data for ${symbol}. Need at least ${smaPeriod} days, got ${priceData.length}`,
 		);
 	}
 
 	const closes = priceData.map((d) => d.close);
-	const sma200 = calculateSMA(closes, 200);
+	const sma = calculateSMA(closes, smaPeriod);
 	const currentPrice = priceData[priceData.length - 1].close;
 
 	return {
 		currentPrice,
-		sma200,
+		sma,
+		smaPeriod,
 		priceData,
 	};
 }

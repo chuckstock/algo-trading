@@ -1,12 +1,16 @@
 import { formatAnalysisMessage, generateSummaryChart } from "@/lib/charts";
 import { createTelegramService } from "@/lib/telegram";
-import { analyzeTicker } from "@/lib/trading-strategy";
+import { analyzeTicker, type TradingSignal } from "@/lib/trading-strategy";
 import { readFileSync } from "fs";
 import { type NextRequest, NextResponse } from "next/server";
 import { join } from "path";
 
 interface TickerConfig {
 	tickers: string[];
+}
+
+function getErrorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : "Unknown error";
 }
 
 /**
@@ -81,7 +85,7 @@ export async function GET(request: NextRequest) {
 		);
 
 		// Analyze each ticker and collect results
-		const analyses = [];
+		const analyses: TradingSignal[] = [];
 		for (const ticker of tickers) {
 			try {
 				const analysis = await analyzeTicker(ticker);
@@ -90,8 +94,8 @@ export async function GET(request: NextRequest) {
 				console.log(
 					`✅ ${ticker}: ${analysis.action.toUpperCase()} (${analysis.deviation > 0 ? "+" : ""}${deviation}%)`,
 				);
-			} catch (error: any) {
-				console.error(`❌ ${ticker}: Failed to analyze - ${error.message}`);
+			} catch (error: unknown) {
+				console.error(`❌ ${ticker}: Failed to analyze - ${getErrorMessage(error)}`);
 				// Skip failed analyses
 			}
 		}
@@ -125,14 +129,15 @@ export async function GET(request: NextRequest) {
 
 			const reportType = isLastDayOfMonth() ? "monthly" : "weekly";
 			console.log(`✅ Successfully sent ${reportType} report to Telegram`);
-		} catch (error: any) {
-			console.error("❌ Failed to send Telegram notification:", error.message);
+		} catch (error: unknown) {
+			const message = getErrorMessage(error);
+			console.error("❌ Failed to send Telegram notification:", message);
 			// Don't fail the whole request if Telegram fails
 			return NextResponse.json(
 				{
 					success: false,
 					error: "Failed to send Telegram notification",
-					message: error.message,
+					message,
 					timestamp: new Date().toISOString(),
 					analyses,
 					chartUrl: summaryChartUrl,
@@ -150,18 +155,21 @@ export async function GET(request: NextRequest) {
 				symbol: a.symbol,
 				action: a.action,
 				currentPrice: a.currentPrice,
-				sma200: a.sma200,
+				sma: a.sma,
+				smaPeriod: a.smaPeriod,
 				deviation: a.deviation,
+				reason: a.reason,
 			})),
 			chartUrl: summaryChartUrl,
 		});
-	} catch (error: any) {
+	} catch (error: unknown) {
+		const message = getErrorMessage(error);
 		console.error("❌ Market analysis failed:", error);
 
 		return NextResponse.json(
 			{
 				error: "Market analysis failed",
-				message: error.message,
+				message,
 				timestamp: new Date().toISOString(),
 			},
 			{ status: 500 },
