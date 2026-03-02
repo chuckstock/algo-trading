@@ -100,7 +100,10 @@ export function generatePriceChart(data: ChartData): string {
 /**
  * Generate a summary chart showing all tickers and their signals
  */
-export function generateSummaryChart(analyses: TradingSignal[]): string {
+export function generateSummaryChart(
+  analyses: TradingSignal[],
+  reportTitle: string = 'Daily Market Analysis'
+): string {
   const chart = new QuickChart();
 
   const tickers = analyses.map(a => a.symbol);
@@ -127,7 +130,7 @@ export function generateSummaryChart(analyses: TradingSignal[]): string {
       options: {
         title: {
           display: true,
-          text: 'Weekly Market Analysis - All Tickers',
+          text: `${reportTitle} - All Tickers`,
           fontSize: 20,
           fontColor: '#1f2937',
         },
@@ -195,7 +198,10 @@ export function generateSummaryChart(analyses: TradingSignal[]): string {
 /**
  * Format analysis results as a text message
  */
-export function formatAnalysisMessage(analyses: TradingSignal[]): string {
+export function formatAnalysisMessage(
+  analyses: TradingSignal[],
+  reportTitle: string = 'Daily Market Analysis'
+): string {
   const timestamp = new Date().toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -206,7 +212,7 @@ export function formatAnalysisMessage(analyses: TradingSignal[]): string {
     timeZone: 'America/New_York',
   });
 
-  let message = `📊 *Weekly Market Analysis*\n`;
+  let message = `📊 *${reportTitle}*\n`;
   message += `🕐 ${timestamp} ET\n\n`;
 
   const buySignals = analyses.filter(a => a.action === 'buy');

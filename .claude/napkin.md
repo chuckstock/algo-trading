@@ -18,3 +18,4 @@
 - This repo monitors mixed assets, including equities and crypto tickers (`BTC-USD`, `ETH-USD`), so strategy defaults may need per-symbol overrides.
 
 - `npm run lint` fails on existing `no-explicit-any` errors in `app/api/trading-bot/route.ts`; if touching that route, clear them so validation passes.
+- Separating weekday and month-end cron routes avoids duplicate or skipped runs when schedules overlap on days 28-31.

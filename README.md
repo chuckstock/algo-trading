@@ -1,10 +1,10 @@
-# Weekly Market Analysis Bot
+# Daily Market Analysis Bot
 
-A market analysis bot that monitors selected tickers using a symbol-specific Simple Moving Average (SMA) strategy and sends weekly chart updates to your Telegram device every Friday at market close.
+A market analysis bot that monitors selected tickers using a symbol-specific Simple Moving Average (SMA) strategy and sends daily chart updates to your Telegram device every weekday at market close, plus a month-end report on the last calendar day of the month.
 
 ## Strategy
 
-The bot analyzes each ticker weekly and provides:
+The bot analyzes each ticker on each scheduled run and provides:
 - **BUY signal** when the price is 1% or more **above** that ticker's configured SMA (momentum)
 - **SELL signal** when the price is 1% or more **below** that ticker's configured SMA (trend weakness)
 - **HOLD signal** when the price is within 1% of that ticker's configured SMA
@@ -68,7 +68,7 @@ Edit `config/tickers.json` to add your desired tickers:
 
 ### Deploy to Vercel with Cron Jobs
 
-The bot is configured to run automatically on Vercel using cron jobs to send weekly market analysis every Friday at market close.
+The bot is configured to run automatically on Vercel using cron jobs to send daily market analysis every weekday at market close, plus a month-end report on the last calendar day of the month.
 
 **1. Deploy to Vercel:**
 
@@ -89,7 +89,7 @@ Go to your Vercel project settings → Environment Variables and add:
 
 **3. Cron Schedule:**
 
-The bot is configured in `vercel.json` to run **every Friday at 9:00 PM UTC** (approximately 4-5 PM ET, depending on DST).
+The bot is configured in `vercel.json` to run **every weekday at 9:00 PM UTC** (approximately 4-5 PM ET, depending on DST), plus a separate month-end run at the same time.
 
 The schedule in `vercel.json`:
 ```json
@@ -97,7 +97,11 @@ The schedule in `vercel.json`:
   "crons": [
     {
       "path": "/api/trading-bot",
-      "schedule": "0 21 * * 5"  // 9 PM UTC every Friday
+      "schedule": "0 21 * * 1-5"  // 9 PM UTC every weekday
+    },
+    {
+      "path": "/api/monthly-trading-bot",
+      "schedule": "0 21 28-31 * *"  // 9 PM UTC on days 28-31; route sends only on true month-end
     }
   ]
 }
@@ -117,7 +121,7 @@ curl https://your-app.vercel.app/api/trading-bot
 
 ### What You'll Receive
 
-Every Friday after market close, you'll receive a Telegram message containing:
+Every weekday after market close, you'll receive a Telegram message containing:
 - 📊 **Summary statistics** (number of BUY/SELL/HOLD signals)
 - 📈 **Detailed analysis** for each ticker with current price and deviation from its configured SMA
 - 📉 **Visual chart** showing all tickers and their signals
@@ -135,7 +139,7 @@ Make sure to:
 
 - Market data is fetched from **Yahoo Finance** API
 - The bot uses a 200-day SMA by default, with `BTC-USD` and `ETH-USD` using a 20-day SMA
-- Analysis runs automatically every Friday at market close
+- Analysis runs automatically every weekday at market close, with a separate month-end report on the last calendar day
 
 ### ⚠️ Disclaimer
 
@@ -150,8 +154,10 @@ This bot is for **informational and educational purposes only**. The signals pro
 ```
 ├── app/
 │   └── api/
+│       ├── monthly-trading-bot/
+│       │   └── route.ts      # API endpoint for month-end analysis
 │       └── trading-bot/
-│           └── route.ts      # API endpoint for weekly analysis
+│           └── route.ts      # API endpoint for daily analysis
 ├── config/
 │   └── tickers.json          # List of tickers to monitor
 ├── lib/

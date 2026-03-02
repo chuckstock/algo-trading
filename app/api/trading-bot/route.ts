@@ -9,6 +9,8 @@ interface TickerConfig {
 	tickers: string[];
 }
 
+export type ReportType = "daily" | "monthly";
+
 function getErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : "Unknown error";
 }
@@ -27,24 +29,27 @@ function loadTickers(): string[] {
 	}
 }
 
-/**
- * Check if today is the last day of the month
- */
-function isLastDayOfMonth(): boolean {
+export function isLastDayOfMonth(): boolean {
 	const now = new Date();
 	const tomorrow = new Date(now);
 	tomorrow.setDate(tomorrow.getDate() + 1);
 	return tomorrow.getDate() === 1;
 }
 
+function getReportLabel(reportType: ReportType): string {
+	return reportType === "monthly" ? "Monthly Market Analysis" : "Daily Market Analysis";
+}
+
 /**
- * Vercel Cron Job Handler - Weekly Market Analysis
+ * Vercel Cron Job Handler - Daily Market Analysis
  * This endpoint is triggered by Vercel cron jobs:
- * - Every Friday at 5pm (market close)
- * - Last day of the month at market close (scheduled for days 28-31, verified in code)
+ * - Every weekday at 5pm (market close)
  * See vercel.json for cron configuration
  */
-export async function GET(request: NextRequest) {
+export async function handleTradingBotRequest(
+	request: NextRequest,
+	reportType: ReportType = "daily",
+) {
 	// Verify this is a cron request (Vercel adds a special header)
 	const authHeader = request.headers.get("authorization");
 	const cronSecret = process.env.CRON_SECRET;
@@ -58,24 +63,9 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 	}
 
-	// Check if this is a last-day-of-month cron trigger (days 28-31)
-	// Only proceed if it's actually the last day of the month
-	const now = new Date();
-	const dayOfMonth = now.getDate();
-	if (dayOfMonth >= 28 && dayOfMonth <= 31 && !isLastDayOfMonth()) {
-		console.log(
-			`⏭️ Skipping execution - day ${dayOfMonth} is not the last day of the month`,
-		);
-		return NextResponse.json({
-			success: true,
-			message: "Skipped - not the last day of the month",
-			timestamp: new Date().toISOString(),
-		});
-	}
-
 	try {
-		const reportType = isLastDayOfMonth() ? "Monthly" : "Weekly";
-		console.log(`\n📊 Starting ${reportType} Market Analysis...`);
+		const reportLabel = getReportLabel(reportType);
+		console.log(`\n📊 Starting ${reportLabel}...`);
 		console.log(`⏰ Execution time: ${new Date().toISOString()}\n`);
 
 		// Load tickers
@@ -107,11 +97,11 @@ export async function GET(request: NextRequest) {
 		console.log("\n📈 Generating charts...");
 
 		// Generate summary chart
-		const summaryChartUrl = generateSummaryChart(analyses);
+		const summaryChartUrl = generateSummaryChart(analyses, reportLabel);
 		console.log("✅ Summary chart generated");
 
 		// Format analysis message
-		const message = formatAnalysisMessage(analyses);
+		const message = formatAnalysisMessage(analyses, reportLabel);
 
 		// Send to Telegram
 		console.log("\n📱 Sending to Telegram...");
@@ -124,10 +114,9 @@ export async function GET(request: NextRequest) {
 			// Send summary chart
 			await telegram.sendPhoto(
 				summaryChartUrl,
-				"Weekly Market Analysis Summary",
+				`${reportLabel} Summary`,
 			);
 
-			const reportType = isLastDayOfMonth() ? "monthly" : "weekly";
 			console.log(`✅ Successfully sent ${reportType} report to Telegram`);
 		} catch (error: unknown) {
 			const message = getErrorMessage(error);
@@ -148,7 +137,7 @@ export async function GET(request: NextRequest) {
 
 		return NextResponse.json({
 			success: true,
-			message: `${reportType} market analysis completed and sent to Telegram`,
+			message: `${reportLabel} completed and sent to Telegram`,
 			timestamp: new Date().toISOString(),
 			tickers,
 			analyses: analyses.map((a) => ({
@@ -177,7 +166,11 @@ export async function GET(request: NextRequest) {
 	}
 }
 
+export async function GET(request: NextRequest) {
+	return handleTradingBotRequest(request, "daily");
+}
+
 // Also support POST for manual triggers
 export async function POST(request: NextRequest) {
-	return GET(request);
+	return handleTradingBotRequest(request, "daily");
 }
