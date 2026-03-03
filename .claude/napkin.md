@@ -8,6 +8,7 @@
 ## User Preferences
 - Keep BTC and ETH on a 20-day moving average instead of the default equity lookback.
 - Prefer the dashboard to feel editorial and newspaper-like rather than like a generic SaaS panel.
+- Keep Telegram alerts in the older concise bot-summary format; do not apply the newspaper/editorial voice there by default.
 
 ## Patterns That Work
 - Make SMA configuration symbol-aware and return the actual SMA period in analysis results so UI and notifications stay accurate.
