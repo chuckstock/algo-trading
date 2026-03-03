@@ -202,7 +202,7 @@ export function formatAnalysisMessage(
   analyses: TradingSignal[],
   reportTitle: string = 'Daily Market Analysis'
 ): string {
-  const timestamp = new Date().toLocaleString('en-US', {
+  const issueDate = new Date().toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -212,48 +212,62 @@ export function formatAnalysisMessage(
     timeZone: 'America/New_York',
   });
 
-  let message = `📊 *${reportTitle}*\n`;
-  message += `🕐 ${timestamp} ET\n\n`;
-
   const buySignals = analyses.filter(a => a.action === 'buy');
   const sellSignals = analyses.filter(a => a.action === 'sell');
   const holdSignals = analyses.filter(a => a.action === 'hold');
+  const leadAnalysis = [...buySignals, ...sellSignals, ...holdSignals]
+    .sort((left, right) => Math.abs(right.deviation) - Math.abs(left.deviation))[0];
 
-  message += `*Summary:*\n`;
-  message += `🟢 Buy Signals: ${buySignals.length}\n`;
-  message += `🔴 Sell Signals: ${sellSignals.length}\n`;
-  message += `⚪️ Hold Signals: ${holdSignals.length}\n\n`;
+  const leadHeadline = leadAnalysis
+    ? leadAnalysis.action === 'buy'
+      ? `${leadAnalysis.symbol} breaks above trend and leads the tape`
+      : leadAnalysis.action === 'sell'
+        ? `${leadAnalysis.symbol} slips below trend and weakens the board`
+        : `${leadAnalysis.symbol} holds the line near its moving average`
+    : 'The market desk awaits fresh copy';
 
-  if (buySignals.length > 0) {
-    message += `*🟢 BUY SIGNALS*\n`;
-    buySignals.forEach(a => {
-      const deviation = a.deviation * 100;
-      message += `• *${a.symbol}*: $${a.currentPrice.toFixed(2)} (${deviation > 0 ? '+' : ''}${deviation.toFixed(2)}% vs SMA)\n`;
-    });
-    message += `\n`;
-  }
+  const formatBrief = (analysis: TradingSignal): string => {
+    const deviation = analysis.deviation * 100;
+    const direction = deviation > 0 ? 'above' : deviation < 0 ? 'below' : 'near';
+    const deviationText =
+      direction === 'near'
+        ? `${Math.abs(deviation).toFixed(2)}% from trend`
+        : `${Math.abs(deviation).toFixed(2)}% ${direction} trend`;
 
-  if (sellSignals.length > 0) {
-    message += `*🔴 SELL SIGNALS*\n`;
-    sellSignals.forEach(a => {
-      const deviation = a.deviation * 100;
-      message += `• *${a.symbol}*: $${a.currentPrice.toFixed(2)} (${deviation.toFixed(2)}% vs SMA)\n`;
-    });
-    message += `\n`;
-  }
+    return [
+      `*${analysis.symbol}*`,
+      `$${analysis.currentPrice.toFixed(2)} print`,
+      `${analysis.smaPeriod}-day SMA at $${analysis.sma.toFixed(2)}`,
+      deviationText,
+      `${analysis.reason}.`,
+    ].join(' | ');
+  };
 
-  if (holdSignals.length > 0) {
-    message += `*⚪️ HOLD SIGNALS*\n`;
-    holdSignals.forEach(a => {
-      const deviation = a.deviation * 100;
-      message += `• *${a.symbol}*: $${a.currentPrice.toFixed(2)} (${deviation > 0 ? '+' : ''}${deviation.toFixed(2)}% vs SMA)\n`;
-    });
-    message += `\n`;
-  }
+  const formatSection = (
+    heading: string,
+    analysesForSection: TradingSignal[],
+  ): string => {
+    if (analysesForSection.length === 0) {
+      return '';
+    }
 
-  message += `_Strategy: price vs configured SMA momentum trading_\n`;
-  message += `_Buy threshold: +1% above SMA_\n`;
-  message += `_Sell threshold: -1% below SMA_`;
+    const briefs = analysesForSection
+      .map((analysis) => `- ${formatBrief(analysis)}`)
+      .join('\n');
 
-  return message;
+    return `*${heading}*\n${briefs}\n\n`;
+  };
+
+  let message = `*THE SIGNAL LEDGER*\n`;
+  message += `${reportTitle}\n`;
+  message += `${issueDate} ET\n\n`;
+  message += `*Banner Headline*\n${leadHeadline}\n\n`;
+  message += `*Market Breadth*\n`;
+  message += `Buys: ${buySignals.length} | Sells: ${sellSignals.length} | Holds: ${holdSignals.length}\n\n`;
+  message += formatSection('Above the Fold: Buy Calls', buySignals);
+  message += formatSection('On the Wire: Sell Calls', sellSignals);
+  message += formatSection('In Brief: Holds', holdSignals);
+  message += `_Desk rule: buy above +1% from the configured SMA, sell below -1%, otherwise hold._`;
+
+  return message.trim();
 }
